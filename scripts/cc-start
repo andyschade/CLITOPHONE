@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+#
+# cc-start - Start a new Claude Code session
+#
+# Usage:
+#   cc-start                    Start Claude Code interactively
+#   cc-start "initial prompt"   Start with an initial message
+#   cc-start -p project_dir     Start in a specific directory
+#
+
+set -e
+
+# Load configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/../.env" ]]; then
+    source "$SCRIPT_DIR/../.env"
+fi
+
+# Defaults
+CLAUDE_MODEL="${CLAUDE_MODEL:-claude-sonnet-4-20250514}"
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Parse options
+PROJECT_DIR=""
+INITIAL_PROMPT=""
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -p|--project)
+            PROJECT_DIR="$2"
+            shift 2
+            ;;
+        -h|--help)
+            echo "cc-start - Start a new Claude Code session"
+            echo ""
+            echo "Usage:"
+            echo "  cc-start                    Start interactively"
+            echo "  cc-start \"your prompt\"      Start with initial prompt"
+            echo "  cc-start -p /path/to/dir    Start in specific directory"
+            echo ""
+            echo "Environment:"
+            echo "  CLAUDE_MODEL    Model to use (default: claude-sonnet-4-20250514)"
+            exit 0
+            ;;
+        *)
+            INITIAL_PROMPT="$1"
+            shift
+            ;;
+    esac
+done
+
+# Change to project directory if specified
+if [[ -n "$PROJECT_DIR" ]]; then
+    if [[ -d "$PROJECT_DIR" ]]; then
+        cd "$PROJECT_DIR"
+        echo -e "${GREEN}Working in:${NC} $PROJECT_DIR"
+    else
+        echo "Error: Directory not found: $PROJECT_DIR"
+        exit 1
+    fi
+fi
+
+# Show session info
+echo -e "${BLUE}Starting Claude Code${NC}"
+echo "─────────────────────"
+echo -e "Directory: ${GREEN}$(pwd)${NC}"
+echo -e "Model:     ${GREEN}${CLAUDE_MODEL}${NC}"
+echo ""
+
+# Build command
+CLAUDE_CMD="claude"
+
+# Add model if specified
+if [[ -n "$CLAUDE_MODEL" ]]; then
+    CLAUDE_CMD="$CLAUDE_CMD --model $CLAUDE_MODEL"
+fi
+
+# Add initial prompt if provided
+if [[ -n "$INITIAL_PROMPT" ]]; then
+    echo -e "Prompt:    ${GREEN}${INITIAL_PROMPT}${NC}"
+    echo ""
+    exec $CLAUDE_CMD "$INITIAL_PROMPT"
+else
+    exec $CLAUDE_CMD
+fi

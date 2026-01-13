@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+#
+# tm - TMUX Session Manager
+# Smart session management with machine-specific identifiers
+#
+# Usage:
+#   tm              List sessions or create default
+#   tm <name>       Attach to session (creates if needed)
+#   tm new <name>   Force create new session
+#   tm kill <name>  Kill session
+#   tm ls           List all sessions
+#
+
+set -e
+
+# Load configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "$SCRIPT_DIR/../.env" ]]; then
+    source "$SCRIPT_DIR/../.env"
+fi
+
+# Defaults
+MACHINE_ID="${CLITOPHONE_MACHINE_ID:-🖥️}"
+DEFAULT_SESSION="${CLITOPHONE_DEFAULT_SESSION:-dev}"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+print_help() {
+    echo -e "${BLUE}tm${NC} - TMUX Session Manager"
+    echo ""
+    echo "Usage:"
+    echo "  tm              List sessions or start default"
+    echo "  tm <name>       Attach to session (creates if needed)"
+    echo "  tm new <name>   Force create new session"
+    echo "  tm kill <name>  Kill a session"
+    echo "  tm ls           List all sessions"
+    echo "  tm help         Show this help"
+    echo ""
+    echo "Current machine: ${MACHINE_ID}"
+}
+
+list_sessions() {
+    if tmux list-sessions 2>/dev/null; then
+        return 0
+    else
+        echo -e "${YELLOW}No active sessions${NC}"
+        return 1
+    fi
+}
+
+session_exists() {
+    tmux has-session -t "$1" 2>/dev/null
+}
+
+create_session() {
+    local name="$1"
+    local display_name="${MACHINE_ID} ${name}"
+
+    echo -e "${GREEN}Creating session:${NC} $display_name"
+
+    if [[ -n "$TMUX" ]]; then
+        # Already in tmux, create detached then switch
+        tmux new-session -d -s "$name"
+        tmux switch-client -t "$name"
+    else
+        tmux new-session -s "$name"
+    fi
+}
+
+attach_session() {
+    local name="$1"
+
+    echo -e "${GREEN}Attaching to:${NC} ${MACHINE_ID} ${name}"
+
+    if [[ -n "$TMUX" ]]; then
+        tmux switch-client -t "$name"
+    else
+        tmux attach-session -t "$name"
+    fi
+}
+
+kill_session() {
+    local name="$1"
+
+    if session_exists "$name"; then
+        echo -e "${RED}Killing session:${NC} $name"
+        tmux kill-session -t "$name"
+    else
+        echo -e "${YELLOW}Session not found:${NC} $name"
+        exit 1
+    fi
+}
+
+# Main logic
+case "${1:-}" in
+    help|--help|-h)
+        print_help
+        ;;
+    ls|list)
+        list_sessions
+        ;;
+    new)
+        if [[ -z "${2:-}" ]]; then
+            echo -e "${RED}Error:${NC} Session name required"
+            echo "Usage: tm new <name>"
+            exit 1
+        fi
+        if session_exists "$2"; then
+            echo -e "${YELLOW}Session already exists:${NC} $2"
+            echo "Use 'tm $2' to attach or 'tm kill $2' first"
+            exit 1
+        fi
+        create_session "$2"
+        ;;
+    kill)
+        if [[ -z "${2:-}" ]]; then
+            echo -e "${RED}Error:${NC} Session name required"
+            echo "Usage: tm kill <name>"
+            exit 1
+        fi
+        kill_session "$2"
+        ;;
+    "")
+        # No args: list sessions or create default
+        if list_sessions; then
+            echo ""
+            echo -e "Use ${BLUE}tm <name>${NC} to attach"
+        else
+            echo -e "Starting default session: ${GREEN}${DEFAULT_SESSION}${NC}"
+            create_session "$DEFAULT_SESSION"
+        fi
+        ;;
+    *)
+        # Session name provided
+        if session_exists "$1"; then
+            attach_session "$1"
+        else
+            create_session "$1"
+        fi
+        ;;
+esac
