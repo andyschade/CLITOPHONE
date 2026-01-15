@@ -42,7 +42,7 @@ Create the following in `scripts/` directory:
 
 - [x] `cc-start` - Start a new Claude Code session in TMUX
 - [x] `cc-continue` - Resume existing Claude Code session or create new one
-- [ ] `tm` - TMUX session manager with machine-specific naming
+- [x] `tm` - TMUX session manager with machine-specific naming
 - [ ] `setup-env.sh` - One-time environment setup script
 
 Add shell aliases to `.bashrc` or `.zshrc`:

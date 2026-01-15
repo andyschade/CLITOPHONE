@@ -1,0 +1,376 @@
+#!/usr/bin/env bash
+# tm - TMUX session manager with machine-specific naming
+# Usage: tm [command] [args]
+
+set -euo pipefail
+
+# Configuration
+MACHINE_EMOJI="${CLITOPHONE_EMOJI:-🖥️}"  # Machine identifier emoji
+MACHINE_NAME="${CLITOPHONE_MACHINE:-$(hostname -s 2>/dev/null || hostname)}"
+DEFAULT_SESSION="main"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+MAGENTA='\033[0;35m'
+NC='\033[0m' # No Color
+BOLD='\033[1m'
+
+# Functions
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[OK]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+show_usage() {
+    cat << EOF
+${BOLD}tm - TMUX Session Manager${NC}
+Machine: ${MACHINE_EMOJI} ${MACHINE_NAME}
+
+${BOLD}Usage:${NC}
+  tm                      List all sessions (interactive picker if fzf available)
+  tm new [name] [dir]     Create a new session
+  tm attach [name]        Attach to a session
+  tm kill [name]          Kill a session
+  tm killall              Kill all sessions (with confirmation)
+  tm rename [old] [new]   Rename a session
+  tm list                 List all sessions with details
+  tm windows [session]    List windows in a session
+  tm help                 Show this help message
+
+${BOLD}Shortcuts:${NC}
+  tm n [name]             Same as 'tm new'
+  tm a [name]             Same as 'tm attach'
+  tm k [name]             Same as 'tm kill'
+  tm l                    Same as 'tm list'
+  tm ls                   Same as 'tm list'
+
+${BOLD}Examples:${NC}
+  tm new project ~/code/project    Create session 'project' in ~/code/project
+  tm a project                     Attach to 'project' session
+  tm k project                     Kill 'project' session
+  tm                               Interactive session picker (requires fzf)
+
+${BOLD}Environment Variables:${NC}
+  CLITOPHONE_EMOJI      Machine identifier emoji (default: 🖥️)
+  CLITOPHONE_MACHINE    Machine name (default: hostname)
+
+EOF
+}
+
+check_dependencies() {
+    if ! command -v tmux &> /dev/null; then
+        log_error "tmux is not installed."
+        log_error "In WSL2: sudo apt install tmux"
+        exit 1
+    fi
+}
+
+has_fzf() {
+    command -v fzf &> /dev/null
+}
+
+# Get session list with formatting
+get_sessions() {
+    tmux list-sessions -F "#{session_name}|#{session_windows}|#{session_attached}|#{session_created}" 2>/dev/null || true
+}
+
+# List sessions with pretty formatting
+list_sessions() {
+    local sessions
+    sessions=$(get_sessions)
+
+    if [ -z "$sessions" ]; then
+        echo -e "${CYAN}${MACHINE_EMOJI} ${MACHINE_NAME} - No active sessions${NC}"
+        echo ""
+        echo "Create a new session with:"
+        echo "  tm new [session-name]"
+        echo "  cc-start [session-name]    # For Claude Code"
+        return 0
+    fi
+
+    echo -e "${CYAN}${BOLD}${MACHINE_EMOJI} ${MACHINE_NAME} - TMUX Sessions${NC}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    printf "${BOLD}%-20s %-10s %-10s %-20s${NC}\n" "SESSION" "WINDOWS" "ATTACHED" "CREATED"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    echo "$sessions" | while IFS='|' read -r name windows attached created; do
+        local attached_str
+        if [ "$attached" == "1" ]; then
+            attached_str="${GREEN}yes${NC}"
+        else
+            attached_str="${YELLOW}no${NC}"
+        fi
+
+        local created_str
+        created_str=$(date -d "@$created" "+%Y-%m-%d %H:%M" 2>/dev/null || date -r "$created" "+%Y-%m-%d %H:%M" 2>/dev/null || echo "N/A")
+
+        printf "%-20s %-10s %-10b %-20s\n" "$name" "$windows" "$attached_str" "$created_str"
+    done
+
+    echo ""
+    echo -e "${BLUE}Tip:${NC} Use 'tm attach <name>' or 'tm a <name>' to connect"
+}
+
+# Interactive session picker with fzf
+interactive_pick() {
+    local sessions
+    sessions=$(tmux list-sessions -F "#{session_name}" 2>/dev/null || true)
+
+    if [ -z "$sessions" ]; then
+        list_sessions
+        return 0
+    fi
+
+    if has_fzf; then
+        local selected
+        selected=$(echo "$sessions" | fzf --prompt="${MACHINE_EMOJI} Select session: " --height=40% --reverse)
+        if [ -n "$selected" ]; then
+            attach_session "$selected"
+        fi
+    else
+        list_sessions
+        echo ""
+        read -p "Enter session name to attach (or press Enter to cancel): " session_name
+        if [ -n "$session_name" ]; then
+            attach_session "$session_name"
+        fi
+    fi
+}
+
+# Create a new session
+new_session() {
+    local session_name="${1:-$DEFAULT_SESSION}"
+    local work_dir="${2:-$(pwd)}"
+
+    # Validate working directory
+    if [ ! -d "$work_dir" ]; then
+        log_error "Directory does not exist: $work_dir"
+        exit 1
+    fi
+
+    # Resolve to absolute path
+    work_dir=$(cd "$work_dir" && pwd)
+
+    # Check if session already exists
+    if tmux has-session -t "$session_name" 2>/dev/null; then
+        log_warn "Session '$session_name' already exists."
+        read -p "Attach to existing session? [Y/n] " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+            attach_session "$session_name"
+        fi
+        return 0
+    fi
+
+    log_info "Creating session: ${MACHINE_EMOJI} $session_name"
+    log_info "Working directory: $work_dir"
+
+    # Create detached session
+    tmux new-session -d -s "$session_name" -c "$work_dir"
+
+    # Set environment variables
+    tmux set-environment -t "$session_name" CLITOPHONE_SESSION "$session_name"
+    tmux set-environment -t "$session_name" CLITOPHONE_MACHINE "$MACHINE_NAME"
+
+    log_success "Session '$session_name' created!"
+
+    # Attach if not in tmux already
+    if [ -z "${TMUX:-}" ]; then
+        tmux attach-session -t "$session_name"
+    else
+        log_info "Already in tmux. Use 'tmux switch-client -t $session_name' to switch."
+    fi
+}
+
+# Attach to a session
+attach_session() {
+    local session_name="${1:-}"
+
+    if [ -z "$session_name" ]; then
+        interactive_pick
+        return
+    fi
+
+    if ! tmux has-session -t "$session_name" 2>/dev/null; then
+        log_error "Session '$session_name' does not exist."
+        log_info "Available sessions:"
+        list_sessions
+        exit 1
+    fi
+
+    log_info "Attaching to: ${MACHINE_EMOJI} $session_name"
+
+    if [ -z "${TMUX:-}" ]; then
+        tmux attach-session -t "$session_name"
+    else
+        tmux switch-client -t "$session_name"
+    fi
+}
+
+# Kill a session
+kill_session() {
+    local session_name="${1:-}"
+
+    if [ -z "$session_name" ]; then
+        log_error "Please specify a session name to kill."
+        log_info "Usage: tm kill <session-name>"
+        list_sessions
+        exit 1
+    fi
+
+    if ! tmux has-session -t "$session_name" 2>/dev/null; then
+        log_error "Session '$session_name' does not exist."
+        exit 1
+    fi
+
+    read -p "Kill session '$session_name'? [y/N] " -n 1 -r
+    echo
+
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        tmux kill-session -t "$session_name"
+        log_success "Session '$session_name' killed."
+    else
+        log_info "Cancelled."
+    fi
+}
+
+# Kill all sessions
+kill_all_sessions() {
+    local sessions
+    sessions=$(tmux list-sessions -F "#{session_name}" 2>/dev/null || true)
+
+    if [ -z "$sessions" ]; then
+        log_info "No sessions to kill."
+        return 0
+    fi
+
+    echo -e "${RED}${BOLD}WARNING: This will kill ALL tmux sessions!${NC}"
+    list_sessions
+    echo ""
+    read -p "Are you sure? Type 'yes' to confirm: " confirm
+
+    if [ "$confirm" == "yes" ]; then
+        tmux kill-server
+        log_success "All sessions killed."
+    else
+        log_info "Cancelled."
+    fi
+}
+
+# Rename a session
+rename_session() {
+    local old_name="${1:-}"
+    local new_name="${2:-}"
+
+    if [ -z "$old_name" ] || [ -z "$new_name" ]; then
+        log_error "Usage: tm rename <old-name> <new-name>"
+        exit 1
+    fi
+
+    if ! tmux has-session -t "$old_name" 2>/dev/null; then
+        log_error "Session '$old_name' does not exist."
+        exit 1
+    fi
+
+    if tmux has-session -t "$new_name" 2>/dev/null; then
+        log_error "Session '$new_name' already exists."
+        exit 1
+    fi
+
+    tmux rename-session -t "$old_name" "$new_name"
+    log_success "Session renamed: '$old_name' -> '$new_name'"
+}
+
+# List windows in a session
+list_windows() {
+    local session_name="${1:-}"
+
+    if [ -z "$session_name" ]; then
+        # If in tmux, use current session
+        if [ -n "${TMUX:-}" ]; then
+            session_name=$(tmux display-message -p '#{session_name}')
+        else
+            log_error "Please specify a session name."
+            exit 1
+        fi
+    fi
+
+    if ! tmux has-session -t "$session_name" 2>/dev/null; then
+        log_error "Session '$session_name' does not exist."
+        exit 1
+    fi
+
+    echo -e "${CYAN}${BOLD}Windows in '$session_name':${NC}"
+    tmux list-windows -t "$session_name" -F "  #{window_index}: #{window_name} (#{pane_current_command})"
+}
+
+# Main
+main() {
+    check_dependencies
+
+    local command="${1:-}"
+
+    case "$command" in
+        ""|list|l|ls)
+            if [ -z "$command" ] && has_fzf; then
+                interactive_pick
+            else
+                list_sessions
+            fi
+            ;;
+        new|n)
+            shift
+            new_session "$@"
+            ;;
+        attach|a)
+            shift
+            attach_session "$@"
+            ;;
+        kill|k)
+            shift
+            kill_session "$@"
+            ;;
+        killall)
+            kill_all_sessions
+            ;;
+        rename)
+            shift
+            rename_session "$@"
+            ;;
+        windows|w)
+            shift
+            list_windows "$@"
+            ;;
+        help|-h|--help)
+            show_usage
+            ;;
+        *)
+            # If argument looks like a session name, try to attach
+            if tmux has-session -t "$command" 2>/dev/null; then
+                attach_session "$command"
+            else
+                log_error "Unknown command: $command"
+                echo ""
+                show_usage
+                exit 1
+            fi
+            ;;
+    esac
+}
+
+main "$@"
