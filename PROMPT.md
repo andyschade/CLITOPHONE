@@ -32,10 +32,10 @@ Based on: https://harper.blog/2026/01/05/claude-code-is-better-on-your-phone/
 - [ ] Test mosh connectivity
 
 ### 5. TMUX Configuration
-- [ ] Create `.tmux.conf` with sensible defaults for mobile use
-- [ ] Configure larger scrollback buffer
-- [ ] Set up easy-to-use key bindings
-- [ ] Configure status bar with session info and machine identifier emoji
+- [x] Create `.tmux.conf` with sensible defaults for mobile use
+- [x] Configure larger scrollback buffer
+- [x] Set up easy-to-use key bindings
+- [x] Configure status bar with session info and machine identifier emoji
 
 ### 6. Shell Scripts & Aliases
 Create the following in `scripts/` directory:
