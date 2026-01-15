@@ -1,0 +1,25 @@
+# Ralph Orchestrator Configuration
+# Documentation: https://github.com/mikeyobrien/ralph-orchestrator
+
+agent: auto                  # Agent selection: claude, kiro, q, gemini, acp, auto
+prompt_file: PROMPT.md       # Task file path
+max_iterations: 100          # Maximum loop count
+max_runtime: 14400           # Runtime limit in seconds (4 hours)
+verbose: false               # Debug output toggle
+
+adapters:
+  claude:
+    enabled: true
+    timeout: 300
+  kiro:
+    enabled: true
+    timeout: 300
+  q:
+    enabled: true
+    timeout: 300
+  gemini:
+    enabled: true
+    timeout: 300
+  acp:
+    enabled: true
+    timeout: 300

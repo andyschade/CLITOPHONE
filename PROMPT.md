@@ -44,6 +44,7 @@ Create the following in `scripts/` directory:
 - [x] `cc-continue` - Resume existing Claude Code session or create new one
 - [x] `tm` - TMUX session manager with machine-specific naming
 - [x] `setup-env.sh` - One-time environment setup script
+- [x] `ssh_config_example` - Template SSH config for phone clients
 
 Add shell aliases to `.bashrc` or `.zshrc`:
 ```bash
@@ -94,3 +95,17 @@ CLITOPHONE/
 - WSL2 is required for mosh and tmux
 - Tailscale handles networking (no port forwarding needed)
 - ANTHROPIC_API_KEY must be securely stored and loaded
+
+
+## Progress Log
+
+### Iteration 5 - Add ssh_config_example
+- Created `config/ssh_config_example` - Template SSH config for phone clients
+- Includes Tailscale hostname configuration, keep-alive settings, and compression
+- Provides multiple host aliases (Tailscale, direct IP, LAN)
+
+### Commit
+`acabd53` - Add ssh_config_example for phone SSH client configuration
+
+### Next iteration should:
+Continue with one of the remaining documentation files (recommended: `docs/QUICKSTART.md`)
