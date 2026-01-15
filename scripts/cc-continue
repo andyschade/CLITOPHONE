@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+# cc-continue - Resume existing Claude Code session or create new one
+# Usage: cc-continue [session-name]
+
+set -euo pipefail
+
+# Configuration
+MACHINE_EMOJI="${CLITOPHONE_EMOJI:-🖥️}"  # Machine identifier emoji
+DEFAULT_SESSION="claude"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Functions
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+log_success() {
+    echo -e "${GREEN}[OK]${NC} $1"
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+show_usage() {
+    cat << EOF
+Usage: cc-continue [session-name]
+
+Resume an existing Claude Code TMUX session, or create a new one if none exists.
+
+Arguments:
+  session-name    Name of the session to resume (default: auto-detect or 'claude')
+
+Options:
+  -l, --list      List all Claude Code sessions
+  -h, --help      Show this help message
+
+Examples:
+  cc                    # Resume most recent session or create 'claude'
+  cc myproject          # Resume or create session named 'myproject'
+  cc -l                 # List all sessions
+
+Alias:
+  This script is typically aliased as 'cc':
+    alias cc='cc-continue'
+
+Environment Variables:
+  CLITOPHONE_EMOJI    Machine identifier emoji (default: 🖥️)
+
+EOF
+}
+
+check_dependencies() {
+    if ! command -v tmux &> /dev/null; then
+        log_error "tmux is not installed. Please run setup-env.sh first."
+        exit 1
+    fi
+}
+
+list_sessions() {
+    echo -e "${CYAN}${MACHINE_EMOJI} Claude Code Sessions${NC}"
+    echo "-----------------------------------"
+
+    if tmux list-sessions 2>/dev/null; then
+        echo ""
+        echo "Use 'cc <session-name>' to attach to a session."
+    else
+        echo "No active TMUX sessions."
+        echo ""
+        echo "Start a new session with:"
+        echo "  cc              # Creates default 'claude' session"
+        echo "  cc-start name   # Creates named session"
+    fi
+}
+
+get_latest_session() {
+    # Get the most recently used tmux session
+    tmux list-sessions -F '#{session_last_attached} #{session_name}' 2>/dev/null | \
+        sort -rn | head -1 | cut -d' ' -f2
+}
+
+attach_session() {
+    local session_name="$1"
+
+    if tmux has-session -t "$session_name" 2>/dev/null; then
+        log_info "Attaching to session: ${MACHINE_EMOJI} $session_name"
+        tmux attach-session -t "$session_name"
+    else
+        log_info "Session '$session_name' not found. Creating new session..."
+        "$SCRIPT_DIR/cc-start" "$session_name"
+    fi
+}
+
+# Main
+main() {
+    # Handle flags
+    case "${1:-}" in
+        -h|--help)
+            show_usage
+            exit 0
+            ;;
+        -l|--list)
+            check_dependencies
+            list_sessions
+            exit 0
+            ;;
+    esac
+
+    # Check dependencies
+    check_dependencies
+
+    # If session name provided, use it
+    if [ -n "${1:-}" ]; then
+        attach_session "$1"
+        exit 0
+    fi
+
+    # No session name provided - try to find existing sessions
+    local sessions
+    sessions=$(tmux list-sessions -F '#{session_name}' 2>/dev/null || true)
+
+    if [ -z "$sessions" ]; then
+        # No sessions exist, create default
+        log_info "No existing sessions. Creating new session..."
+        "$SCRIPT_DIR/cc-start" "$DEFAULT_SESSION"
+        exit 0
+    fi
+
+    # Check if there's only one session
+    local session_count
+    session_count=$(echo "$sessions" | wc -l)
+
+    if [ "$session_count" -eq 1 ]; then
+        # Only one session, attach to it
+        attach_session "$sessions"
+        exit 0
+    fi
+
+    # Multiple sessions - attach to most recent or show list
+    local latest
+    latest=$(get_latest_session)
+
+    if [ -n "$latest" ]; then
+        log_info "Multiple sessions found. Attaching to most recent: $latest"
+        log_info "Use 'cc -l' to list all sessions, or 'cc <name>' to attach to a specific one."
+        tmux attach-session -t "$latest"
+    else
+        list_sessions
+    fi
+}
+
+main "$@"
