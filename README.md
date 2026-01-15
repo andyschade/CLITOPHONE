@@ -76,6 +76,7 @@ CLITOPHONE/
     ├── QUICKSTART.md   # TL;DR connection guide
     ├── SETUP-BLINK.md  # iOS (Blink.sh) setup guide
     ├── SETUP-TERMUX.md # Android (Termux) setup guide
+    ├── SERVER-SETUP.md    # Server setup guide (Windows/WSL2/SSH/Mosh)
     └── TROUBLESHOOTING.md  # Common issues and fixes
 ```
 
@@ -108,9 +109,17 @@ tm kill [name]        # Kill session
 
 ## Documentation
 
+### Getting Started
 - **[QUICKSTART.md](docs/QUICKSTART.md)** - Get connected in 5 minutes
+
+### Server Setup
+- **[SERVER-SETUP.md](docs/SERVER-SETUP.md)** - Complete Windows/WSL2/SSH/Mosh server setup
+
+### Phone Client Setup
 - **[SETUP-BLINK.md](docs/SETUP-BLINK.md)** - Complete iOS setup with Blink.sh
 - **[SETUP-TERMUX.md](docs/SETUP-TERMUX.md)** - Complete Android setup with Termux
+
+### Reference
 - **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Fix common issues
 
 ## Requirements
