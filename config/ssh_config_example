@@ -1,0 +1,101 @@
+# CLITOPHONE SSH Client Configuration Example
+# Copy this to ~/.ssh/config on your phone (Blink/Termux)
+# and customize the values for your setup.
+#
+# Usage:
+#   ssh clitophone
+#   mosh clitophone
+#   mosh clitophone -- tmux attach
+#
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# CLITOPHONE - Remote Claude Code Server
+# -----------------------------------------------------------------------------
+Host clitophone
+    # Replace with your Tailscale hostname or IP
+    # Find it with: tailscale status
+    HostName your-machine.your-tailnet.ts.net
+
+    # Your username on the Windows/WSL2 machine
+    User your-username
+
+    # SSH port (default is 22)
+    Port 22
+
+    # Path to your SSH private key
+    # For Blink: Keys are managed in the app
+    # For Termux: Usually ~/.ssh/id_ed25519
+    IdentityFile ~/.ssh/id_ed25519
+
+    # Keep connection alive (important for mobile)
+    ServerAliveInterval 30
+    ServerAliveCountMax 3
+
+    # Enable compression for better performance over mobile
+    Compression yes
+
+    # Request pseudo-terminal allocation
+    RequestTTY yes
+
+    # Forward agent for git operations (optional)
+    ForwardAgent no
+
+    # Strict host key checking (set to 'ask' first time)
+    StrictHostKeyChecking ask
+
+# -----------------------------------------------------------------------------
+# Alternative: Direct IP (for when DNS/Tailscale names don't work)
+# -----------------------------------------------------------------------------
+Host clitophone-ip
+    HostName 100.x.x.x
+    User your-username
+    Port 22
+    IdentityFile ~/.ssh/id_ed25519
+    ServerAliveInterval 30
+    ServerAliveCountMax 3
+    Compression yes
+    RequestTTY yes
+
+# -----------------------------------------------------------------------------
+# LAN Connection (home network, no Tailscale)
+# -----------------------------------------------------------------------------
+Host clitophone-lan
+    HostName 192.168.1.100
+    User your-username
+    Port 22
+    IdentityFile ~/.ssh/id_ed25519
+    ServerAliveInterval 30
+    ServerAliveCountMax 3
+    Compression yes
+    RequestTTY yes
+
+# =============================================================================
+# TIPS
+# =============================================================================
+#
+# 1. Finding your Tailscale hostname:
+#    On Windows PowerShell: tailscale status
+#    Your machine will be listed with its name.ts.net address
+#
+# 2. Using mosh with this config:
+#    mosh clitophone
+#    mosh clitophone -- tmux attach
+#    mosh clitophone -- cc
+#
+# 3. Quick commands after connecting:
+#    cc          - Resume or start Claude Code session
+#    ccs name    - Start new named session
+#    tm          - TMUX session manager
+#
+# 4. Testing connection:
+#    ssh -v clitophone     # Verbose output for debugging
+#    ssh clitophone echo "Connected!"
+#
+# 5. If connection fails:
+#    - Ensure Tailscale is running on both devices
+#    - Check that SSH server is running on Windows
+#    - Verify your public key is in ~/.ssh/authorized_keys on server
+#    - Check Windows Firewall allows SSH (port 22)
+#
+# =============================================================================
