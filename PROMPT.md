@@ -56,7 +56,7 @@ alias ccs='cc-start'
 Create `docs/` directory with:
 
 - [x] `SETUP-BLINK.md` - Blink.sh (iOS) configuration guide
-- [ ] `SETUP-TERMUX.md` - Termux (Android) configuration guide
+- [x] `SETUP-TERMUX.md` - Termux (Android) configuration guide
 - [x] `QUICKSTART.md` - TL;DR connection instructions
 - [ ] `TROUBLESHOOTING.md` - Common issues and fixes
 
@@ -145,3 +145,23 @@ Continue with remaining documentation files:
 Continue with remaining documentation files:
 1. `docs/SETUP-TERMUX.md` - Termux (Android) configuration guide
 2. `docs/TROUBLESHOOTING.md` - Common issues and fixes
+
+
+### Iteration 8 - Add SETUP-TERMUX.md
+- Created `docs/SETUP-TERMUX.md` - Comprehensive Termux (Android) configuration guide
+- Covers F-Droid installation (emphasizes NOT using Play Store version)
+- Includes Tailscale Android setup instructions
+- SSH key generation and configuration with ControlMaster for multiplexing
+- Mosh setup with quick-connect script
+- Termux properties configuration (extra keys, colors, styling)
+- Documents useful add-ons: Termux:Widget, Termux:Boot, Termux:API
+- TMUX quick reference and CLITOPHONE commands
+- Comprehensive troubleshooting section for Android-specific issues
+- Tips for mobile development including external keyboard support
+- Quick setup checklist for easy onboarding
+
+### Commit
+`a57c7bb` - Add SETUP-TERMUX.md - Android Termux configuration guide
+
+### Next iteration should:
+Create the final documentation file: `docs/TROUBLESHOOTING.md`
