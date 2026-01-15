@@ -17,3 +17,10 @@ venv/
 .vscode/
 *.swp
 *.swo
+
+# Claude Code local settings
+.claude/
+
+# Local prompts/development artifacts
+prompts/
+nul
