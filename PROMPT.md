@@ -58,7 +58,7 @@ Create `docs/` directory with:
 - [x] `SETUP-BLINK.md` - Blink.sh (iOS) configuration guide
 - [x] `SETUP-TERMUX.md` - Termux (Android) configuration guide
 - [x] `QUICKSTART.md` - TL;DR connection instructions
-- [ ] `TROUBLESHOOTING.md` - Common issues and fixes
+- [x] `TROUBLESHOOTING.md` - Common issues and fixes
 
 ## Success Criteria
 - [ ] Can SSH into Windows PC from phone via Tailscale
@@ -165,3 +165,23 @@ Continue with remaining documentation files:
 
 ### Next iteration should:
 Create the final documentation file: `docs/TROUBLESHOOTING.md`
+
+
+### Iteration 9 - Add TROUBLESHOOTING.md
+- Created `docs/TROUBLESHOOTING.md` - Comprehensive troubleshooting guide
+- Covers connection issues, SSH problems, Mosh problems, Tailscale issues
+- TMUX troubleshooting and Claude Code issues
+- WSL2-specific issues and performance optimization
+- Platform-specific issues for iOS (Blink) and Android (Termux)
+- Diagnostic commands section with quick health check and full diagnostic script
+- Quick reference table for common error messages and fixes
+- Getting help section with links to relevant resources
+
+### Commit
+`0092b76` - Add TROUBLESHOOTING.md - comprehensive troubleshooting guide
+
+### Next iteration should:
+All client documentation is now complete. Next steps could be:
+1. Review remaining requirements (Windows SSH Server, Tailscale, WSL2, Mosh Server sections)
+2. Update README.md with documentation links
+3. Final review and testing of all documentation
