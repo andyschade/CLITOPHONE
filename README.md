@@ -130,6 +130,9 @@ Set-Service -Name sshd -StartupType Automatic
 
 # Verify it's running
 Get-Service sshd
+
+# Add firewall rule for Mosh (UDP ports for persistent connections)
+New-NetFirewallRule -Name "Mosh" -DisplayName "Mosh Server (UDP)" -Direction Inbound -Protocol UDP -LocalPort 60000-61000 -Action Allow
 ```
 
 #### Step 4: Configure SSH to Use WSL2
